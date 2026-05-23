@@ -1,4 +1,4 @@
-# AILang Language Reference
+# AILang Language 
 
 > A token-efficient systems language that compiles to C++.
 > Designed for AI code generation — every syntax decision minimizes tokens spent.
