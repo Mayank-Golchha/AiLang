@@ -1,0 +1,654 @@
+(* ================================================
+   AILANG — Token-Efficient Systems Language
+   Final Grammar Specification (EBNF)
+   ================================================ *)
+
+program =
+    { import_stmt | statement } ;
+
+(* =========================
+   RESERVED KEYWORDS
+   ========================= *)
+
+reserved_keyword =
+      "use"
+    | "as"
+    | "exp"
+    | "cls"
+    | "enum"
+    | "if"
+    | "elif"
+    | "else"
+    | "loop"
+    | "for"
+    | "in"
+    | "match"
+    | "return"
+    | "break"
+    | "continue"
+    | "throw"
+    | "try"
+    | "catch"
+    | "async"
+    | "await"
+    | "true"
+    | "false"
+    | "self"
+    | "super"
+    | "Map"
+    | "Set"
+    | "Deque"
+    | "PQueue" ;
+
+(* =========================
+   IMPORTS
+   ========================= *)
+
+(* Three import forms:                                        *)
+(*                                                            *)
+(* use std.math          → access as math.sqrt()             *)
+(* use std.math as m     → access as m.sqrt()                *)
+(* use std.math as *     → access as sqrt() directly         *)
+(*                                                            *)
+(* Selective import also works:                               *)
+(* use std.math.sqrt as * → only sqrt imported flat          *)
+(*                                                            *)
+(* Collision rule:                                            *)
+(*   same name, different args → overload resolves (free     *)
+(*   from C++ backend)                                        *)
+(*   same name, identical signature → use alias form         *)
+
+import_stmt =
+      "use" , module_path , NEWLINE
+    | "use" , module_path , "as" , identifier , NEWLINE
+    | "use" , module_path , "as" , "*" , NEWLINE ;
+
+module_path =
+    identifier ,
+    { "." , identifier } ;
+
+(* =========================
+   STATEMENTS
+   ========================= *)
+
+statement =
+      var_decl
+    | multi_var_decl
+    | assignment_stmt
+    | func_decl
+    | class_decl
+    | enum_decl
+    | if_stmt
+    | loop_stmt
+    | for_stmt
+    | match_stmt
+    | return_stmt
+    | break_stmt
+    | continue_stmt
+    | throw_stmt
+    | try_stmt
+    | expr_stmt ;
+
+(* =========================
+   VARIABLES
+   ========================= *)
+
+(* Single variable — immutable by default, := for mutable *)
+(* "exp" makes it exported/public                         *)
+
+var_decl =
+    [ "exp" ] ,
+    identifier ,
+    [ ":" , type ] ,
+    ( ":=" | "=" ) ,
+    expression ,
+    NEWLINE ;
+
+(* Multi-variable declaration on one line        *)
+(* x, y, z := 1, 2, 3                           *)
+(* a:int, b:str = 1, "hi"                        *)
+
+multi_var_decl =
+    [ "exp" ] ,
+    multi_var_lhs ,
+    ( ":=" | "=" ) ,
+    expr_list ,
+    NEWLINE ;
+
+multi_var_lhs =
+    multi_var_target ,
+    { "," , multi_var_target } ;
+
+multi_var_target =
+    ( "_" | identifier ) ,
+    [ ":" , type ] ;
+
+assignment_stmt =
+    postfix_expr ,
+    assign_op ,
+    expression ,
+    NEWLINE ;
+
+assign_op =
+      "="
+    | "+="
+    | "-="
+    | "*="
+    | "/="
+    | "%=" ;
+
+(* =========================
+   FUNCTIONS
+   ========================= *)
+
+func_decl =
+    [ "exp" ] ,
+    [ "async" ] ,
+    identifier ,
+    "(" ,
+    [ param_list ] ,
+    ")" ,
+    [ "->" , type ] ,
+    (
+        ":" , NEWLINE , block          (* multi-line body   *)
+      | "=>" , expression , NEWLINE    (* single-expression *)
+      | ":" , statement                (* single-line body  *)
+    ) ;
+
+param_list =
+    param ,
+    { "," , param } ;
+
+param =
+    ( "_" | identifier ) ,
+    ":" ,
+    type ;
+
+(* Implicit return: last expression in block is return value *)
+(* Explicit return still allowed                             *)
+
+return_stmt =
+    "return" ,
+    [ expression ] ,
+    NEWLINE ;
+
+break_stmt =
+    "break" , NEWLINE ;
+
+continue_stmt =
+    "continue" , NEWLINE ;
+
+throw_stmt =
+    "throw" , expression , NEWLINE ;
+
+(* try/catch forms — all valid:              *)
+(* catch e:NetworkError:  named + typed     *)
+(* catch NetworkError:    typed, no name    *)
+(* catch:                 catch-all         *)
+
+try_stmt =
+    "try" ,
+    ":" ,
+    ( NEWLINE , block | statement ) ,
+    { catch_clause } ;
+
+catch_clause =
+    "catch" ,
+    [
+        identifier , ":" , type    (* named + typed  *)
+      | type                       (* typed, no name *)
+    ] ,
+    ":" ,
+    ( NEWLINE , block | statement ) ;
+
+(* =========================
+   CLASSES
+   ========================= *)
+
+(* self is auto-injected as first param in all class methods *)
+
+class_decl =
+    [ "exp" ] ,
+    "cls" ,
+    identifier ,
+    [ "[" , generic_list , "]" ] ,
+    ":" ,
+    NEWLINE ,
+    INDENT ,
+    { class_member } ,
+    DEDENT ;
+
+class_member =
+      var_decl
+    | func_decl ;
+
+generic_list =
+    identifier ,
+    { "," , identifier } ;
+
+(* =========================
+   ENUMS
+   ========================= *)
+
+enum_decl =
+    [ "exp" ] ,
+    "enum" ,
+    identifier ,
+    ":" ,
+    NEWLINE ,
+    INDENT ,
+    { enum_variant } ,
+    DEDENT ;
+
+enum_variant =
+    identifier ,
+    [ "(" , type_list , ")" ] ,
+    NEWLINE ;
+
+type_list =
+    type ,
+    { "," , type } ;
+
+(* =========================
+   BLOCKS
+   ========================= *)
+
+block =
+    INDENT ,
+    { statement } ,
+    DEDENT ;
+
+(* =========================
+   CONTROL FLOW
+   ========================= *)
+
+if_stmt =
+    "if" ,
+    expression ,
+    ":" ,
+    ( NEWLINE , block | statement ) ,
+    {
+        "elif" ,
+        expression ,
+        ":" ,
+        ( NEWLINE , block | statement )
+    } ,
+    [
+        "else" ,
+        ":" ,
+        ( NEWLINE , block | statement )
+    ] ;
+
+loop_stmt =
+    "loop" ,
+    [ expression ] ,
+    ":" ,
+    ( NEWLINE , block | statement ) ;
+
+(* Range-based:        for i in 0..10 :      *)
+(* Range+step:         for i in 0..10, 2 :   *)
+(* Each-based:         for i in arr :        *)
+(* Map/pair iteration: for k, v in map :     *)
+
+for_stmt =
+    for_range_stmt
+  | for_each_stmt
+  | for_map_stmt ;
+
+for_range_stmt =
+    "for" ,
+    ( "_" | identifier ) ,
+    "in" ,
+    expression ,
+    ".." ,
+    expression ,
+    [ "," , expression ] ,
+    ":" ,
+    ( NEWLINE , block | statement ) ;
+
+for_each_stmt =
+    "for" ,
+    ( "_" | identifier ) ,
+    "in" ,
+    expression ,
+    ":" ,
+    ( NEWLINE , block | statement ) ;
+
+for_map_stmt =
+    "for" ,
+    ( "_" | identifier ) ,
+    "," ,
+    ( "_" | identifier ) ,
+    "in" ,
+    expression ,
+    ":" ,
+    ( NEWLINE , block | statement ) ;
+
+(* match arms checked top to bottom   *)
+(* EOF arm = default, must be last    *)
+
+match_stmt =
+    "match" ,
+    expression ,
+    ":" ,
+    NEWLINE ,
+    INDENT ,
+    { match_arm } ,
+    [ eof_arm ] ,
+    DEDENT ;
+
+match_arm =
+    pattern ,
+    { "|" , pattern } ,
+    ":" ,
+    ( NEWLINE , block | statement ) ;
+
+eof_arm =
+    "EOF" ,
+    ":" ,
+    ( NEWLINE , block | statement ) ;
+
+pattern =
+      "_"
+    | identifier , "(" , pattern_list , ")"
+    | literal ;
+
+pattern_list =
+    ( "_" | identifier ) ,
+    { "," , ( "_" | identifier ) } ;
+
+(* =========================
+   EXPRESSIONS
+   ========================= *)
+
+expr_stmt =
+    expression ,
+    NEWLINE ;
+
+expression =
+    assignment_expr ;
+
+assignment_expr =
+    logical_or ,
+    [ assign_op , assignment_expr ] ;
+
+logical_or =
+    logical_and ,
+    { "||" , logical_and } ;
+
+logical_and =
+    bitwise_or ,
+    { "&&" , bitwise_or } ;
+
+bitwise_or =
+    bitwise_xor ,
+    { "|" , bitwise_xor } ;
+
+bitwise_xor =
+    bitwise_and ,
+    { "^" , bitwise_and } ;
+
+bitwise_and =
+    equality ,
+    { "&" , equality } ;
+
+equality =
+    chained_comparison ,
+    {
+        ( "==" | "!=" ) ,
+        chained_comparison
+    } ;
+
+(* Chained comparisons: 0 < x < 10 *)
+
+chained_comparison =
+    shift ,
+    {
+        ( "<" | ">" | "<=" | ">=" ) ,
+        shift
+    } ;
+
+shift =
+    term ,
+    {
+        ( "<<" | ">>" ) ,
+        term
+    } ;
+
+term =
+    factor ,
+    {
+        ( "+" | "-" ) ,
+        factor
+    } ;
+
+factor =
+    unary ,
+    {
+        ( "*" | "/" | "%" ) ,
+        unary
+    } ;
+
+unary =
+      postfix_expr
+    | "-" , unary
+    | "!" , unary
+    | "~" , unary
+    | "await" , unary ;
+
+postfix_expr =
+    primary ,
+    {
+          "." , identifier
+        | "(" , [ expr_list ] , ")"
+        | "[" , expression , "]"
+        | "?"
+    } ;
+
+primary =
+      literal
+    | identifier
+    | "_"
+    | lambda_expr
+    | sized_vector_literal
+    | array_literal
+    | tuple_literal
+    | map_literal
+    | "(" , expression , ")" ;
+
+expr_list =
+    expression ,
+    { "," , expression } ;
+
+(* =========================
+   LAMBDAS
+   ========================= *)
+
+lambda_expr =
+    "(" ,
+    [ lambda_params ] ,
+    ")" ,
+    "=>" ,
+    expression ;
+
+lambda_params =
+    ( "_" | identifier ) ,
+    { "," , ( "_" | identifier ) } ;
+
+(* =========================
+   TYPES
+   ========================= *)
+
+type =
+    base_type ,
+    [ "?" ] ;
+
+base_type =
+      primitive_type
+    | array_type
+    | map_type
+    | tuple_type
+    | builtin_collection_type
+    | generic_type
+    | user_type ;
+
+primitive_type =
+      "i8"
+    | "i16"
+    | "int"
+    | "i64"
+    | "u8"
+    | "u16"
+    | "u32"
+    | "u64"
+    | "f32"
+    | "f64"
+    | "chr"
+    | "str" ;
+
+(* Built-in named collection types                           *)
+(*                                                           *)
+(* Map[K,V]  → std::map<K,V>               ordered          *)
+(* Set[T]    → std::unordered_set<T>       hash set         *)
+(* Deque[T]  → std::deque<T>              double-ended      *)
+(* PQueue[T] → std::priority_queue        min-heap default  *)
+(*             <T,vector<T>,greater<T>>                      *)
+
+builtin_collection_type =
+      "Map"    , "[" , type , "," , type , "]"
+    | "Set"    , "[" , type , "]"
+    | "Deque"  , "[" , type , "]"
+    | "PQueue" , "[" , type , "]" ;
+
+(* Array type rules:                                         *)
+(*   [T]        → vector<T>          empty dynamic          *)
+(*   [T, N]     → array<T,N>         static  (N = literal)  *)
+(*   [T, var]   → vector<T>(var)     sized dynamic          *)
+
+array_type =
+    "[" ,
+    type ,
+    [ "," , ( integer_literal | identifier ) ] ,
+    "]" ;
+
+(* {K:V} → unordered_map<K,V>            *)
+(* : visually signals key:value mapping  *)
+
+map_type =
+    "{" ,
+    type ,
+    ":" ,
+    type ,
+    "}" ;
+
+tuple_type =
+    "(" ,
+    type ,
+    "," ,
+    type_list ,
+    ")" ;
+
+generic_type =
+    identifier ,
+    "[" ,
+    type_list ,
+    "]" ;
+
+user_type =
+    identifier ;
+
+(* =========================
+   LITERALS
+   ========================= *)
+
+literal =
+      integer_literal
+    | float_literal
+    | string_literal
+    | char_literal
+    | "true"
+    | "false" ;
+
+(* String interpolation: "hello {name}, result={a+b}" *)
+(* Any expression is valid inside {}                  *)
+
+string_literal =
+    '"' ,
+    {
+        string_char
+      | "{" , expression , "}"
+    } ,
+    '"' ;
+
+(* Sized vector literals                                      *)
+(*                                                            *)
+(* n*[val] → vector<T>(n, val)  sized, all slots set to val  *)
+(* n*[]    → vector<T>(n)       sized, default initialized    *)
+(*                                                            *)
+(* Rules:                                                     *)
+(*   LHS — any expression (literal or variable)               *)
+(*   Inside [] — at most ONE literal or identifier, no exprs  *)
+(*   Type inferred from fill value or surrounding context      *)
+(*   Result is always dynamic vector, never static array      *)
+
+sized_vector_literal =
+    expression ,
+    "*" ,
+    "[" ,
+    [ integer_literal | float_literal | "true" | "false" | identifier ] ,
+    "]" ;
+
+array_literal =
+    "[" ,
+    [ expr_list ] ,
+    "]" ;
+
+tuple_literal =
+    "(" ,
+    expression ,
+    "," ,
+    expr_list ,
+    ")" ;
+
+map_literal =
+    "{" ,
+    [ map_entry_list ] ,
+    "}" ;
+
+map_entry_list =
+    map_entry ,
+    { "," , map_entry } ;
+
+map_entry =
+    expression ,
+    ":" ,
+    expression ;
+
+(* =========================
+   TOKENS
+   ========================= *)
+
+identifier =
+    IDENTIFIER_TOKEN
+    - reserved_keyword ;
+
+integer_literal =
+    INTEGER_TOKEN ;
+
+float_literal =
+    FLOAT_TOKEN ;
+
+char_literal =
+    CHAR_TOKEN ;
+
+string_char =
+    ? any character except '"' and '{' ? ;
+
+NEWLINE =
+    "\n" ;
+
+INDENT =
+    INDENT_TOKEN ;
+
+DEDENT =
+    DEDENT_TOKEN ;
