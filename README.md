@@ -38,7 +38,7 @@
 
 ---
 
-## Token Efficiency Examples
+## Token Spent Comparison
 
 Benchmarks use OpenAI tokenizer and compare equivalent readable implementations.
 
@@ -49,8 +49,7 @@ Benchmarks use OpenAI tokenizer and compare equivalent readable implementations.
 #### AILang
 
 ```ailang
-program 1 => tokens 51,characters 122
-use iostream
+use std.io
 
 fib(n:int) -> int:
     if n <= 1: return n
@@ -63,7 +62,6 @@ for i in 0..10:
 #### C++
 
 ```cpp
-c++ => tokens 78,characters 214
 #include <iostream>
 
 int fib(int n) {
@@ -91,7 +89,6 @@ int main() {
 #### AILang
 
 ```ailang
-program 2 => tokens 106,characters 390
 use std.io
 
 cls Calculator:
@@ -120,7 +117,6 @@ print("10 + 20 = {result}")
 #### C++
 
 ```cpp
-c++ => tokens 190,characters 747
 #include <iostream>
 #include <vector>
 #include <optional>
@@ -170,7 +166,6 @@ int main() {
 #### AILang
 
 ```ailang
-program 3 => tokens 136,characters 370
 use std.io
 
 binary_search(arr:[int], target:int) -> int:
@@ -191,7 +186,6 @@ print("found 13 at index {idx}")
 #### C++
 
 ```cpp
-c++ => tokens 171,characters 522
 #include <iostream>
 #include <vector>
 
