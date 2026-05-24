@@ -38,6 +38,190 @@
 
 ---
 
+## Token Efficiency Examples
+
+Benchmarks use OpenAI tokenizer and compare equivalent readable implementations.
+
+---
+
+### Example 1 — Fibonacci
+
+#### AILang
+
+```ailang
+program 1 => tokens 51,characters 122
+use iostream
+
+fib(n:int) -> int:
+    if n <= 1: return n
+    fib(n-1) + fib(n-2)
+
+for i in 0..10:
+    print("{i}: {fib(i)}")
+```
+
+#### C++
+
+```cpp
+c++ => tokens 78,characters 214
+#include <iostream>
+
+int fib(int n) {
+    if (n <= 1) return n;
+    return fib(n-1) + fib(n-2);
+}
+
+int main() {
+    for (int i = 0; i < 10; i++) {
+        cout << i << ": " << fib(i) << endl;
+    }
+    return 0;
+}
+```
+
+| Metric | AILang | C++ |
+|---|---|---|
+| Tokens | 51 | 78 |
+| Characters | 122 | 214 |
+
+---
+
+### Example 2 — Stack Calculator
+
+#### AILang
+
+```ailang
+program 2 => tokens 106,characters 390
+use std.io
+
+cls Calculator:
+    stack:[int] := []
+    
+    push(val:int):
+        self.stack.push(val)
+    
+    pop() -> int?:
+        self.stack.pop()?
+    
+    add() -> int?:
+        a := self.pop()?
+        b := self.pop()?
+        result := a + b
+        self.push(result)
+        result
+
+calc := Calculator()
+calc.push(10)
+calc.push(20)
+result := calc.add()
+print("10 + 20 = {result}")
+```
+
+#### C++
+
+```cpp
+c++ => tokens 190,characters 747
+#include <iostream>
+#include <vector>
+#include <optional>
+using namespace std;
+
+class Calculator {
+private:
+    std::vector<int> stack;
+public:
+    void push(int val) {
+        stack.push_back(val);
+    }
+    optional<int> pop() {
+        if (stack.empty()) return nullopt;
+        auto val = stack.back();
+        stack.pop_back();
+        return val;
+    }
+    optional<int> add() {
+        auto a = pop(); if (!a) return nullopt;
+        auto b = pop(); if (!b) return nullopt;
+        auto result = *a + *b;
+        push(result);
+        return result;
+    }
+};
+
+int main() {
+    auto calc = Calculator();
+    calc.push(10);
+    calc.push(20);
+    auto result = calc.add();
+    cout << "10 + 20 = " << result.value() << "\n";
+    return 0;
+}
+```
+
+| Metric | AILang | C++ |
+|---|---|---|
+| Tokens | 106 | 190 |
+| Characters | 390 | 747 |
+
+---
+
+### Example 3 — Binary Search
+
+#### AILang
+
+```ailang
+program 3 => tokens 136,characters 370
+use std.io
+
+binary_search(arr:[int], target:int) -> int:
+    lo:int := 0
+    hi:int := arr.len - 1
+    loop lo <= hi:
+        mid := (lo + hi) / 2
+        if arr[mid] == target: return mid
+        elif arr[mid] < target: lo = mid + 1
+        else: hi = mid - 1
+    -1
+
+arr:[int] = [1,3,5,7,9,11,13,15,17,19]
+idx := binary_search(arr, 13)
+print("found 13 at index {idx}")
+```
+
+#### C++
+
+```cpp
+c++ => tokens 171,characters 522
+#include <iostream>
+#include <vector>
+
+using namespace std;
+
+int binary_search(vector<int> arr, int target) {
+    int lo = 0;
+    int hi = arr.size() - 1;
+    while (lo <= hi) {
+        auto mid = (lo + hi) / 2;
+        if (arr[mid] == target) return mid;
+        else if (arr[mid] < target) lo = mid + 1;
+        else hi = mid - 1;
+    }
+    return -1;
+}
+
+int main() {
+    const vector<int> arr = {1,3,5,7,9,11,13,15,17,19};
+    auto idx = binary_search(arr, 13);
+    cout << "found 13 at index " << endl;
+    return 0;
+}
+```
+
+| Metric | AILang | C++ |
+|---|---|---|
+| Tokens | 136 | 171 |
+| Characters | 370 | 522 |
+
 ## Reserved Keywords
 
 ```
