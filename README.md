@@ -71,7 +71,7 @@ int fib(int n) {
 
 int main() {
     for (int i = 0; i < 10; i++) {
-        cout << i << ": " << fib(i) << endl;
+        std::cout << i << ": " << fib(i) << std::endl;
     }
     return 0;
 }
